@@ -82,7 +82,7 @@ The aim is to use the provided data to build a model which would ultimately help
 
 Here's a part of how the provided data looked like.
 ```{r}
-head(edx)
+head(train)
 ```
 Movie rating is considered to be consisted of three parts.
 1. The average rating calculated with arithmetic mean of all available ratings.
