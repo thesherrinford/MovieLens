@@ -1,0 +1,107 @@
+---
+title: "MovieLens"
+author: "theSherrinford"
+date: "20/06/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r Code.R, warning=FALSE, message=FALSE, include=FALSE}
+################################
+# Create train set, validation set 
+################################
+
+# Note: this process could take a couple of minutes
+
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
+
+# MovieLens 10M dataSet:
+# https://grouplens.org/datasets/movielens/10m/
+# http://files.grouplens.org/datasets/movielens/ml-10m.zip
+
+dl <- tempfile()
+download.file("http://files.grouplens.org/datasets/movielens/ml-10m.zip", dl)
+
+ratings <- fread(text = gsub("::", "\t", readLines(unzip(dl, "ml-10M100K/ratings.dat"))),
+                 col.names = c("userId", "movieId", "rating", "timestamp"))
+
+movies <- str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3)
+colnames(movies) <- c("movieId", "title", "genres")
+movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(levels(movieId))[movieId],
+                                           title = as.character(title),
+                                           genres = as.character(genres))
+
+movielens <- left_join(ratings, movies, by = "movieId")
+
+# Validation set will be 10% of MovieLens data
+set.seed(1, sample.kind = "Rounding")
+test_index <- createDataPartition(y = movielens$rating, times = 1, p = 0.1, list = FALSE)
+train <- movielens[-test_index,]
+temp <- movielens[test_index,]
+
+# Make sure userId and movieId in validation set are also in train set
+validation <- temp %>% 
+  semi_join(train, by = "movieId") %>%
+  semi_join(train, by = "userId")
+
+# Add rows removed from validation set back into train set
+removed <- anti_join(temp, validation)
+train <- rbind(train, removed)
+
+rm(dl, ratings, movies, test_index, temp, movielens, removed)
+
+#function which calculates RMSE
+RMSE <- function(actual_rating, predicted_rating){
+  sqrt(mean((actual_rating - predicted_rating)^2))
+}
+
+#predicted rating = mean rating(mu) + movie effect(bm) + user effect(bu)
+
+mu <- mean(train$rating)
+
+bm <- train %>% group_by(movieId) %>% summarise(bm = mean(rating - mu))
+
+bu <- train %>% left_join(bm, by = 'movieId') %>% group_by(userId) %>% summarise(bu = mean(rating - bm - mu))
+
+#RMSE for this model for validation set
+
+rmse_bm_bu <- validation %>% left_join(bm, by = 'movieId') %>% left_join(bu, by = 'userId') %>% 
+  mutate(predicted_rating = mu + bm + bu) %>% summarise(RMSE(rating, predicted_rating))
+
+rmse_bm_bu <- rmse_bm_bu[1,]
+```
+
+This is a pdf document generated from attached R Markdown file.
+
+The aim is to use the provided data to build a model which would ultimately help predicting the ratings for unknown data set.
+
+Here's a part of how the provided data looked like.
+```{r}
+head(edx)
+```
+Movie rating is considered to be consisted of three parts.
+1. The average rating calculated with arithmetic mean of all available ratings.
+This value is calculated to be
+```{r}
+mu
+```
+2. Effet of movie bias calculated with all the ratings available for that movie.
+Here's a part of what we've got
+```{r}
+head(bm)
+```
+3. User specific effect calculated using all the available ratings gives by the specific user.
+Here's a part of the same
+```{r}
+head(bu)
+```
+
+Using this model, movie ratings are calculated for movies is validation set and the RMSE is calculated as
+```{r}
+rmse_bm_bu
+```
