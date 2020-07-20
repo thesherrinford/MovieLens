@@ -1,26 +1,74 @@
 ---
 title: "MovieLens"
-author: "theSherrinford"
+author: "Aditya Taktode - Harvard Data Science Professional - Capstone"
 date: "20/06/2020"
-output: pdf_document
+output: 
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    highlights: pygments
+    keep_tex: true
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+```{r setup, include=T}
+knitr::opts_chunk$set(echo = T, fig.align = 'center', cache = F, cache.lazy = F)
 ```
 
+# Executive Summary
+
+The purpose of this project is creating a recommender system using the MovieLens dataset.
+
+The version of movielens dataset used for this final assignment contains approximately 10 Million movie ratings, divided in 9 Milion for training and one Milion for validation. 
+
+It is a small subset of a much larger (and famous) dataset with several millions of ratings.
+
+After a initial data exploration, the different recommender systems built on this dataset are evaluated and choosen based on the RMSE (Root Mean Squared Error) that should be at least lower than **0.87750**.
+
+$$\mbox{RMSE} = \sqrt{\frac{1}{n}\sum_{t=1}^{n}e_t^2}$$
+
+# Getting set-up with the required libraries
+
 ```{r Code.R, warning=FALSE, message=FALSE, include=FALSE}
-################################
-# Create train set, validation set 
-################################
-
-# Note: this process could take a couple of minutes
-
+#Install all the needded libraries if not pressent already
 if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
 if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
 if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
+if(!require(rpart)) install.packages("rpart", repos = "http://cran.us.r-project.org") 
+if(!require(rpart.plot)) install.packages("rpart.plot", repos = "http://cran.us.r-project.org") 
+if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org") 
+if(!require(gbm)) install.packages("gbm", repos = "http://cran.us.r-project.org") 
+if(!require(stringr)) install.packages("stringr", repos = "http://cran.us.r-project.org") 
+if(!require(biglm)) install.packages("biglm", repos = "http://cran.us.r-project.org") 
+if(!require(broom)) install.packages("broom", repos = "http://cran.us.r-project.org") 
+if(!require(lubridate)) install.packages("lubridate", repos = "http://cran.us.r-project.org") 
+if(!require(recommenderlab)) install.packages("recommenderlab", repos = "http://cran.us.r-project.org") 
+if(!require(recosystem)) install.packages("recosystem", repos = "http://cran.us.r-project.org")
 
-# MovieLens 10M dataSet:
+#Loading all the required libraries
+library(tidyverse) 
+library(ggplot2) 
+library(caret) 
+library(rpart) 
+library(rpart.plot) 
+library(randomForest) 
+library(gbm) 
+library(stringr) 
+library(biglm) 
+library(broom) 
+library(data.table) 
+library(lubridate) 
+library(recommenderlab) 
+library(recosystem)
+```
+
+
+# Load and prepare the data 
+
+The 10 Million movielens dataset is divided into two sets: ```dataset``` for training purpose and ```validation``` for validation (i.e. final test) purpose.
+
+```{r, include=TRUE, echo=TRUE}
+# MovieLens 10M dataset:
 # https://grouplens.org/datasets/movielens/10m/
 # http://files.grouplens.org/datasets/movielens/ml-10m.zip
 
@@ -32,6 +80,7 @@ ratings <- fread(text = gsub("::", "\t", readLines(unzip(dl, "ml-10M100K/ratings
 
 movies <- str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3)
 colnames(movies) <- c("movieId", "title", "genres")
+
 movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(levels(movieId))[movieId],
                                            title = as.character(title),
                                            genres = as.character(genres))
@@ -39,69 +88,91 @@ movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(levels(movieId))
 movielens <- left_join(ratings, movies, by = "movieId")
 
 # Validation set will be 10% of MovieLens data
-set.seed(1, sample.kind = "Rounding")
+set.seed(1, sample.kind="Rounding")
 test_index <- createDataPartition(y = movielens$rating, times = 1, p = 0.1, list = FALSE)
-train <- movielens[-test_index,]
+dataset <- movielens[-test_index,]
 temp <- movielens[test_index,]
 
-# Make sure userId and movieId in validation set are also in train set
+# Make sure userId and movieId in validation set are also in dataset set
 validation <- temp %>% 
-  semi_join(train, by = "movieId") %>%
-  semi_join(train, by = "userId")
+  semi_join(dataset, by = "movieId") %>%
+  semi_join(dataset, by = "userId")
 
-# Add rows removed from validation set back into train set
+# Add rows removed from validation set back into dataset set
 removed <- anti_join(temp, validation)
-train <- rbind(train, removed)
-
-rm(dl, ratings, movies, test_index, temp, movielens, removed)
-
-#function which calculates RMSE
-RMSE <- function(actual_rating, predicted_rating){
-  sqrt(mean((actual_rating - predicted_rating)^2))
-}
-
-#predicted rating = mean rating(mu) + movie effect(bm) + user effect(bu)
-
-mu <- mean(train$rating)
-
-bm <- train %>% group_by(movieId) %>% summarise(bm = mean(rating - mu))
-
-bu <- train %>% left_join(bm, by = 'movieId') %>% group_by(userId) %>% summarise(bu = mean(rating - bm - mu))
-
-#RMSE for this model for validation set
-
-rmse_bm_bu <- validation %>% left_join(bm, by = 'movieId') %>% left_join(bu, by = 'userId') %>% 
-  mutate(predicted_rating = mu + bm + bu) %>% summarise(RMSE(rating, predicted_rating))
-
-rmse_bm_bu <- rmse_bm_bu[1,]
+dataset <- rbind(dataset, removed)
 ```
 
-This is a pdf document generated from attached R Markdown file.
+# Data Exploration
 
-The aim is to use the provided data to build a model which would ultimately help predicting the ratings for unknown data set.
+```{r, echo = TRUE, include=TRUE}
+#Summary of dataset
+glimpse(dataset)
+```
+After having a glimpse of summary of our dataset, it has come to notice that the ```genres``` are pipe-separated values.
 
-Here's a part of how the provided data looked like.
-```{r}
-head(train)
-```
-Movie rating is considered to be consisted of three parts.
-1. The average rating calculated with arithmetic mean of all available ratings.
-This value is calculated to be
-```{r}
-mu
-```
-2. Effet of movie bias calculated with all the ratings available for that movie.
-Here's a part of what we've got
-```{r}
-head(bm)
-```
-3. User specific effect calculated using all the available ratings gives by the specific user.
-Here's a part of the same
-```{r}
-head(bu)
+```{r, echo = TRUE, include=TRUE}
+#peeking into 'genres'
+head(dataset$genres, n = 20)
 ```
 
-Using this model, movie ratings are calculated for movies is validation set and the RMSE is calculated as
-```{r}
-rmse_bm_bu
+It is necessary to extract them for better, robust and precise estimation.
+
+```{r, echo = TRUE, include=TRUE}
+#separate rows for extracting different genres
+dataset <- dataset %>% separate_rows(genres, sep = "\\|")
+
+#the new genres are
+levels(factor(dataset$genres))
 ```
+The new genres look better and well segregated.
+
+We'll have to do the same for validation set as well
+
+```{r, echo=TRUE, include=TRUE}
+#separate rows for extracting different genres
+validation <- validation %>% separate_rows(genres, sep = "\\|")
+```
+
+```{r, echo = TRUE, include=TRUE}
+#check for any missing values
+sum(is.na(dataset))
+```
+
+So, there are no missing values, cheers!!
+
+Now, diving into the number of unique values for some features we've got
+
+```{r, echo=TRUE, include=TRUE}
+
+#total number of unique users
+n_distinct(dataset$userId)
+
+#total number of unique movies
+n_distinct(dataset$movieId)
+
+#total number of unique genres
+n_distinct(dataset$genres)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
