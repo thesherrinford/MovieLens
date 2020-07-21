@@ -11,7 +11,7 @@ output:
     keep_tex: true
 ---
 
-```{r setup, include=T}
+```{r setup, include=T, warning=FALSE}
 knitr::opts_chunk$set(echo = T, fig.align = 'center', cache = F, cache.lazy = F)
 ```
 
@@ -29,7 +29,7 @@ $$\mbox{RMSE} = \sqrt{\frac{1}{n}\sum_{t=1}^{n}e_t^2}$$
 
 # Getting set-up with the required libraries
 
-```{r Code.R, warning=FALSE, message=FALSE, include=FALSE}
+```{r Code.R, warning=FALSE, message=FALSE, include=FALSE, warning=FALSE}
 #Install all the needded libraries if not pressent already
 if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
 if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
@@ -67,7 +67,7 @@ library(recosystem)
 
 The 10 Million movielens dataset is divided into two sets: ```dataset``` for training purpose and ```validation``` for validation (i.e. final test) purpose.
 
-```{r, include=TRUE, echo=TRUE}
+```{r, include=TRUE, echo=TRUE, warning=FALSE}
 # MovieLens 10M dataset:
 # https://grouplens.org/datasets/movielens/10m/
 # http://files.grouplens.org/datasets/movielens/ml-10m.zip
@@ -107,7 +107,7 @@ dataset <- rbind(dataset, removed)
 
 ## Preliminary data exploration
 
-```{r, echo = TRUE, include=TRUE}
+```{r, echo = TRUE, include=TRUE, warning=FALSE}
 #Summary of dataset
 glimpse(dataset)
 ```
@@ -124,7 +124,7 @@ The features in dataset are six:
 
 After having a glimpse of summary of our dataset, it has come to notice that the ```genres``` are pipe-separated values.
 
-```{r, echo = TRUE, include=TRUE}
+```{r, echo = TRUE, include=TRUE, warning=FALSE}
 #peeking into 'genres'
 head(dataset$genres, n = 20)
 ```
@@ -132,7 +132,7 @@ head(dataset$genres, n = 20)
 
 It is necessary to extract them for better, robust and precise estimation.
 
-```{r, echo = TRUE, include=TRUE}
+```{r, echo = TRUE, include=TRUE, warning=FALSE}
 #separate rows for extracting different genres
 dataset <- dataset %>% separate_rows(genres, sep = "\\|")
 
@@ -143,12 +143,14 @@ The new genres look better and well segregated.
 
 We'll have to do the same for validation set as well
 
-```{r, echo=TRUE, include=TRUE}
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
 #separate rows for extracting different genres
 validation <- validation %>% separate_rows(genres, sep = "\\|")
 ```
 
-```{r, echo = TRUE, include=TRUE}
+check for any NAs
+
+```{r, echo = TRUE, include=TRUE, warning=FALSE}
 #check for any missing values
 sum(is.na(dataset))
 ```
@@ -157,7 +159,7 @@ So, there are no missing values, cheers!!
 
 Now, diving into the number of unique values for some features we've got
 
-```{r, echo=TRUE, include=TRUE}
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
 
 #total number of unique users
 n_distinct(dataset$userId)
@@ -173,7 +175,7 @@ n_distinct(dataset$genres)
 
 ### Rating distribution exploration
 
-```{r, echo=TRUE, include=TRUE}
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
 dataset %>% group_by(rating) %>% summarise(count = n()) %>% ggplot(aes(rating, count)) + geom_point() + geom_line() + labs(title = "Rating counts per rating", y = "Count", x = "Rating")
 ```
 This visualizationg shows that there is a small amount of negative votes(i.e. below 3). Maybe, the users give ratings only if they like it.
@@ -181,7 +183,7 @@ Also, half-star ratings are less likely as compared to the full-star ratings.
 
 ### Overview of rating frequency through years
 
-```{r, echo=TRUE, include=TRUE}
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
 dataset %>% mutate(year = year(as_datetime(timestamp, origin = '1970-01-01'))) %>% ggplot(aes(x = year)) + geom_histogram() + title("Rating frequency through years")
 ```
 
@@ -189,7 +191,7 @@ This visualizes frequench of user's ratings through years
 
 ### Number of ratings given to a movie
 
-```{r, echo=TRUE, include=TRUE}
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
 dataset %>% group_by(movieId) %>% summarise(count = n()) %>% ggplot(aes(count)) + geom_histogram(col = "white") + scale_x_log10() + ggtitle("number of ratings given to a single movie") + xlab("Number of Ratings") + ylab("Number of Movies")
 ```
 This seems normally distributed (given logarithmic transformation taken on X-axis i.e. for number of ratings)
@@ -197,7 +199,7 @@ Lets have a leav of faith and hope that this would be of some help in building t
 
 ### Rating distribution per user
 
-```{r, echo=TRUE, include=TRUE}
+```{r, echo=TRUE, include=TRUE. warning=FALSE}
 dataset %>% group_by(userId) %>% summarise(count = n()) %>% ggplot(aes(count)) + geom_histogram(color = 'white') + scale_x_log10() + xlab("Number of ratings given") + ylab("Number of users") + ggtitle("Number of ratings given to the movies by the users")
 ```
 
@@ -205,13 +207,46 @@ dataset %>% group_by(userId) %>% summarise(count = n()) %>% ggplot(aes(count)) +
 
 ### Overview of rating distribution over different genres
 
-```{r, echo=TRUE, include=TRUE}
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
 dataset %>% group_by(genres) %>% summarise(count = n()) %>% ggplot(aes(genres, count)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 This gives an overview of rating distribution over different genres.
 
+# Preprocessing the data
+
+There's no pre-processing requirements for the models we're gonna build.
+
+## Removing unwanted features
+
+Remove 'timestamp', because we are not using it in any of our models and 'title', because 'movieId' serves the same purpose and including it would add redundancy.
+
+```{r, include=TRUE, echo=TRUE, warning=FALSE}
+#removing 'timestamp' and 'title'
+dataset <- dataset %>% select(-timestamp, -title)
+```
+
+## Splitting into training and testing data
+
+We first need to separate our actual training dataset into a training set and a test set so that validation set ramains intact for final expected error evaluation purpose.
+
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
+#splitting the training data into training and testing sets
+inTrain <- createDataPartition(y = dataset$rating, times = 1, p = 0.7, list = F)
+
+training <- dataset[inTrain,]
+test <- dataset[-inTrain,]
+```
+
 
 # Analysis - Model building and evaluation
+
+
+
+
+
+
+
+
 
 
 

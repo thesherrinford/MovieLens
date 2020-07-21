@@ -71,30 +71,31 @@ dataset <- rbind(dataset, removed)
 dataset <- dataset %>% separate_rows(genres, sep = "\\|")
 validation <- validation %>% separate_rows(genres, sep = "\\|")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#removing 'timestamp' and 'title'
+dataset <- dataset %>% select(-timestamp, -title)
 
 #splitting the training data into training and testing sets
-inTrain <- createDataPartition(y = edx$rating, times = 1, p = 0.7, list = F)
+inTrain <- createDataPartition(y = dataset$rating, times = 1, p = 0.7, list = F)
 
-training <- edx[inTrain,]
-test <- edx[-inTrain,]
+training <- dataset[inTrain,]
+test <- dataset[-inTrain,]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
