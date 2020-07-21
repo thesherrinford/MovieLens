@@ -105,16 +105,30 @@ dataset <- rbind(dataset, removed)
 
 # Data Exploration
 
+## Preliminary data exploration
+
 ```{r, echo = TRUE, include=TRUE}
 #Summary of dataset
 glimpse(dataset)
 ```
+
+The features in dataset are six:
+
+- **userId** ```<integer>``` that contains the unique identification number for each user.
+- **movieId** ```<numeric>``` that contains the unique identification number for each movie.
+- **rating** ```<numeric>``` that contains the rating of one movie by one user. Ratings are made on a 5-Star scale with half-star increments.
+- **timestamp** ```<integer>``` that contains the timestamp for one specific rating provided by one user.
+- **title** ```<character>``` that contains the title of each movie including the year of the release.
+- **genres** ```<character>``` that contains a list of pipe-separated of genre of each movie.
+
+
 After having a glimpse of summary of our dataset, it has come to notice that the ```genres``` are pipe-separated values.
 
 ```{r, echo = TRUE, include=TRUE}
 #peeking into 'genres'
 head(dataset$genres, n = 20)
 ```
+
 
 It is necessary to extract them for better, robust and precise estimation.
 
@@ -155,10 +169,49 @@ n_distinct(dataset$movieId)
 n_distinct(dataset$genres)
 ```
 
+# Ratings explorating analysis
+
+### Rating distribution exploration
+
+```{r, echo=TRUE, include=TRUE}
+dataset %>% group_by(rating) %>% summarise(count = n()) %>% ggplot(aes(rating, count)) + geom_point() + geom_line() + labs(title = "Rating counts per rating", y = "Count", x = "Rating")
+```
+This visualizationg shows that there is a small amount of negative votes(i.e. below 3). Maybe, the users give ratings only if they like it.
+Also, half-star ratings are less likely as compared to the full-star ratings.
+
+### Overview of rating frequency through years
+
+```{r, echo=TRUE, include=TRUE}
+dataset %>% mutate(year = year(as_datetime(timestamp, origin = '1970-01-01'))) %>% ggplot(aes(x = year)) + geom_histogram() + title("Rating frequency through years")
+```
+
+This visualizes frequench of user's ratings through years
+
+### Number of ratings given to a movie
+
+```{r, echo=TRUE, include=TRUE}
+dataset %>% group_by(movieId) %>% summarise(count = n()) %>% ggplot(aes(count)) + geom_histogram(col = "white") + scale_x_log10() + ggtitle("number of ratings given to a single movie") + xlab("Number of Ratings") + ylab("Number of Movies")
+```
+This seems normally distributed (given logarithmic transformation taken on X-axis i.e. for number of ratings)
+Lets have a leav of faith and hope that this would be of some help in building the model ;)
+
+### Rating distribution per user
+
+```{r, echo=TRUE, include=TRUE}
+dataset %>% group_by(userId) %>% summarise(count = n()) %>% ggplot(aes(count)) + geom_histogram(color = 'white') + scale_x_log10() + xlab("Number of ratings given") + ylab("Number of users") + ggtitle("Number of ratings given to the movies by the users")
+```
+
+## Genre analysis
+
+### Overview of rating distribution over different genres
+
+```{r, echo=TRUE, include=TRUE}
+dataset %>% group_by(genres) %>% summarise(count = n()) %>% ggplot(aes(genres, count)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+This gives an overview of rating distribution over different genres.
 
 
-
-
+# Analysis - Model building and evaluation
 
 
 
