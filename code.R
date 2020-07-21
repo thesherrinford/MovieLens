@@ -80,6 +80,27 @@ inTrain <- createDataPartition(y = dataset$rating, times = 1, p = 0.7, list = F)
 training <- dataset[inTrain,]
 test <- dataset[-inTrain,]
 
+#The mean of ratings in training set
+raw_mean <- mean(training$rating)
+
+#genres effect
+genres_effect <- training %>% group_by(genres) %>% summarise(genreseffect = mean(rating - raw_mean))
+
+#movie effect
+movie_effect <- training %>% left_join(genres_effect, by = 'genres') %>% group_by(movieId) %>% summarise(movieeffect = mean(rating - raw_mean - genreseffect))
+
+#user effect
+user_effect <- training %>% left_join(genres_effect, by = 'genres') %>% left_join(movie_effect, by = 'movieId') %>% group_by(userId) %>% summarise(usereffect = mean(rating - raw_mean - genreseffect - movieeffect))
+
+#checking with test set
+pred <- test %>% left_join(movie_effect, by = 'movieId') %>% left_join(user_effect, by = 'userId') %>% left_join(genres_effect, by = 'genres') %>% mutate(preds = raw_mean + movieeffect + usereffect + genreseffect)
+
+#function RMSE
+RMSE <- function(predictions, actuals){
+  sqrt(mean((predictions - actuals)^2))
+}
+
+
 
 
 
