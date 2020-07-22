@@ -88,8 +88,9 @@ user_effect <- training %>% left_join(genres_effect, by = 'genres') %>% left_joi
 #Predictor function
 predictions <- function(testSet){
   #predicting with the model
-  pred <- test %>% left_join(movie_effect, by = 'movieId') %>% left_join(user_effect, by = 'userId') %>% left_join(genres_effect, by = 'genres') %>% mutate(preds = raw_mean + movieeffect + usereffect + genreseffect) %>% .$preds
+  pred <- testSet %>% left_join(movie_effect, by = 'movieId') %>% left_join(user_effect, by = 'userId') %>% left_join(genres_effect, by = 'genres') %>% mutate(preds = raw_mean + movieeffect + usereffect + genreseffect) %>% .$preds
   #adjusting our predictions according to the expected range
-  pred[pred < 0.5] <- 0
+  pred[pred < 0.5] <- 0.5
   pred[pred > 5] <- 5
+  pred
 }
