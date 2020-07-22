@@ -2,13 +2,7 @@
 title: "MovieLens"
 author: "Aditya Taktode - Harvard Data Science Professional - Capstone"
 date: "20/06/2020"
-output: 
-  pdf_document:
-    toc: true
-    toc_depth: 2
-    number_sections: true
-    highlights: pygments
-    keep_tex: true
+output: pdf_document
 ---
 
 ```{r setup, include=T, warning=FALSE}
@@ -38,7 +32,7 @@ RMSE <- function(predictions, actuals){
 
 # Getting set-up with the required libraries
 
-```{r Code.R, warning=FALSE, message=FALSE, include=FALSE, warning=FALSE}
+```{r Code.R, warning=FALSE, message=FALSE, include=TRUE, warning=TRUE}
 #Install all the needded libraries if not pressent already
 if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
 if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
@@ -217,7 +211,7 @@ Lets have a leav of faith and hope that this would be of some help in building t
 
 ### Rating distribution per user
 
-```{r, echo=TRUE, include=TRUE. warning=FALSE}
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
 dataset %>% group_by(userId) %>% summarise(count = n()) %>% ggplot(aes(count)) + geom_histogram(color = 'white') + scale_x_log10() + xlab("Number of ratings given") + ylab("Number of users") + ggtitle("Number of ratings given to the movies by the users")
 ```
 
