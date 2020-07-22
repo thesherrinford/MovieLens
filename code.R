@@ -3,31 +3,16 @@
 if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
 if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
 if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
-if(!require(rpart)) install.packages("rpart", repos = "http://cran.us.r-project.org") 
-if(!require(rpart.plot)) install.packages("rpart.plot", repos = "http://cran.us.r-project.org") 
-if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org") 
-if(!require(gbm)) install.packages("gbm", repos = "http://cran.us.r-project.org") 
 if(!require(stringr)) install.packages("stringr", repos = "http://cran.us.r-project.org") 
-if(!require(biglm)) install.packages("biglm", repos = "http://cran.us.r-project.org") 
 if(!require(broom)) install.packages("broom", repos = "http://cran.us.r-project.org") 
 if(!require(lubridate)) install.packages("lubridate", repos = "http://cran.us.r-project.org") 
-if(!require(recommenderlab)) install.packages("recommenderlab", repos = "http://cran.us.r-project.org") 
-if(!require(recosystem)) install.packages("recosystem", repos = "http://cran.us.r-project.org")
 
 library(tidyverse) 
-library(ggplot2) 
 library(caret) 
-library(rpart) 
-library(rpart.plot) 
-library(randomForest) 
-library(gbm) 
+library(data.table)
 library(stringr) 
-library(biglm) 
-library(broom) 
-library(data.table) 
-library(lubridate) 
-library(recommenderlab) 
-library(recosystem)
+library(broom)  
+library(lubridate)
 
 ##########################################################
 # Create 'dataset' set, 'validation' set (final hold-out test set)
@@ -80,6 +65,14 @@ inTrain <- createDataPartition(y = dataset$rating, times = 1, p = 0.7, list = F)
 training <- dataset[inTrain,]
 test <- dataset[-inTrain,]
 
+#RMSE function
+RMSE <- function(predictions, actuals){
+  d <- predictions - actuals
+  d <- d^2
+  sqrt(mean(as.numeric(d), na.rm = TRUE))
+}
+
+
 #The mean of ratings in training set
 raw_mean <- mean(training$rating)
 
@@ -92,31 +85,11 @@ movie_effect <- training %>% left_join(genres_effect, by = 'genres') %>% group_b
 #user effect
 user_effect <- training %>% left_join(genres_effect, by = 'genres') %>% left_join(movie_effect, by = 'movieId') %>% group_by(userId) %>% summarise(usereffect = mean(rating - raw_mean - genreseffect - movieeffect))
 
-#checking with test set
-pred <- test %>% left_join(movie_effect, by = 'movieId') %>% left_join(user_effect, by = 'userId') %>% left_join(genres_effect, by = 'genres') %>% mutate(preds = raw_mean + movieeffect + usereffect + genreseffect)
-
-#function RMSE
-RMSE <- function(predictions, actuals){
-  sqrt(mean((predictions - actuals)^2))
+#Predictor function
+predictions <- function(testSet){
+  #predicting with the model
+  pred <- test %>% left_join(movie_effect, by = 'movieId') %>% left_join(user_effect, by = 'userId') %>% left_join(genres_effect, by = 'genres') %>% mutate(preds = raw_mean + movieeffect + usereffect + genreseffect) %>% .$preds
+  #adjusting our predictions according to the expected range
+  pred[pred < 0.5] <- 0
+  pred[pred > 5] <- 5
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

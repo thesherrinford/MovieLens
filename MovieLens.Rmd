@@ -26,6 +26,15 @@ It is a small subset of a much larger (and famous) dataset with several millions
 After a initial data exploration, the different recommender systems built on this dataset are evaluated and choosen based on the RMSE (Root Mean Squared Error) that should be at least lower than **0.87750**.
 
 $$\mbox{RMSE} = \sqrt{\frac{1}{n}\sum_{t=1}^{n}e_t^2}$$
+The RMSE function
+```{r, include=TRUE, echo=TRUE}
+RMSE <- function(predictions, actuals){
+  d <- predictions - actuals
+  d <- d^2
+  sqrt(mean(as.numeric(d), na.rm = TRUE))
+}
+```
+
 
 # Getting set-up with the required libraries
 
@@ -173,6 +182,15 @@ n_distinct(dataset$genres)
 
 # Ratings explorating analysis
 
+### Ratings range
+
+```{r, include=TRUE, echo=TRUE}
+range(dataset$rating)
+```
+
+The minimum possible rating is 0.5 whereas the maximum is 5
+
+
 ### Rating distribution exploration
 
 ```{r, echo=TRUE, include=TRUE, warning=FALSE}
@@ -240,27 +258,43 @@ test <- dataset[-inTrain,]
 
 # Analysis - Model building and evaluation
 
+Assume that the final rating comprises of average movie rating, movie-specific effect, user-specific effect and the genre popularity effect.
 
+```Rating = Mean + MovieEffect + UserEffect + GenresEffect```
 
+```{r, include=TRUE, echo=TRUE, warning=TRUE}
+#The mean of ratings in training set
+raw_mean <- mean(training$rating)
 
+#genres effect
+genres_effect <- training %>% group_by(genres) %>% summarise(genreseffect = mean(rating - raw_mean))
 
+#movie effect
+movie_effect <- training %>% left_join(genres_effect, by = 'genres') %>% group_by(movieId) %>% summarise(movieeffect = mean(rating - raw_mean - genreseffect))
 
+#user effect
+user_effect <- training %>% left_join(genres_effect, by = 'genres') %>% left_join(movie_effect, by = 'movieId') %>% group_by(userId) %>% summarise(usereffect = mean(rating - raw_mean - genreseffect - movieeffect))
 
+#Predictor function
+predictions <- function(testSet){
+  #predicting with the model
+  pred <- test %>% left_join(movie_effect, by = 'movieId') %>% left_join(user_effect, by = 'userId') %>% left_join(genres_effect, by = 'genres') %>% mutate(preds = raw_mean + movieeffect + usereffect + genreseffect) %>% .$preds
+  #adjusting our predictions according to the expected range
+  pred[pred < 0.5] <- 0
+  pred[pred > 5] <- 5
+}
+```
 
+#Conclusion
 
+After training the model, test set RMSE and validation set RMSE is calculated as
 
+```{r, include=TRUE, echo=TRUE, warning=TRUE}
+#test set
+predTest <- predictions(test)
+RMSE(predTest, test$rating)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#validation set
+predVal <- predictions(validation)
+RMSE(predVal, validation$rating)
+```
